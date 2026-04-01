@@ -20,7 +20,7 @@ source(gamePath .. "dataS/scripts/utils/Utils.lua")
 source(gamePath .. "dataS/scripts/densityMaps/InfoLayer.lua")
 
 FieldToolkit = {}
-FieldToolkit.WINDOW_WIDTH = 600
+FieldToolkit.WINDOW_WIDTH = 640
 FieldToolkit.WINDOW_HEIGHT = -1
 FieldToolkit.TEXT_WIDTH = 230
 FieldToolkit.TEXT_HEIGHT = -1
@@ -46,44 +46,67 @@ end
 function FieldToolkit:_initializeHelpTexts()
     self.helpTexts = {}
 
-    self.helpTexts.createFieldPoints = [[HOW TO: Create Field (Points)
-1. Navigate the camera to where you want the field to start.
-2. Click 'Create Field (Points)'.
-3. A new 'fieldXXX' Transform Group is created at the origin (0,0,0).
-4. The first point ('point1') and the indicators are placed exactly in front of your camera.
-5. Select 'point1', duplicate it (CTRL+D), and position the points around your field boundary.]]
+    self.helpTexts.createField = [[HOW TO: Create Field
+-- METHOD 1: POINTS (Camera) --
+1. Move camera to the desired start location and click 'Points (Camera)'.
+2. A new 'fieldXXX' is created. Duplicate 'point1' (CTRL+D) and place around the boundary.
 
-    self.helpTexts.createFieldSpline = [[HOW TO: Create Field (from Spline)
-1. Use the GIANTS Editor to draw a spline where your field boundary should be (Create -> Spline).
-2. Select the spline in the Scenegraph.
-3. Click 'Create Field (from Spline)'.
-4. The script will automatically create a new field and convert the spline's curve into perfectly ground-aligned polygon points.]]
+-- METHOD 2: FROM SPLINE --
+1. Draw a spline in GE (Create -> Spline) representing the boundary.
+2. Select the spline in the Scenegraph and click 'From Spline'.
+3. The script auto-generates the field with terrain-aligned points.]]
 
-    self.helpTexts.addExclPoints = [[HOW TO: Add Exclusion (Points)
-Use this to create "holes" (like grass strips or water ditches) inside your fields.
-1. Select the main 'fieldXXX' Transform Group in the Scenegraph.
-2. Click 'Add Exclusion (Points)'.
-3. The script automatically creates the 'exclusionPoints' folder (if missing) and adds a new, sequentially numbered 'exclusionX' group.
-4. The first point of this new exclusion zone is placed in front of your camera.
-5. Duplicate the point and outline the area you want to subtract from the field.]]
+    self.helpTexts.addExcl = [[HOW TO: Add Exclusion (Holes/Ditches)
+-- METHOD 1: POINTS (Camera) --
+1. Select the main 'fieldXXX' group and click 'Points (Camera)'.
+2. An 'exclusionX' group is added. Duplicate 'point1' to outline the hole.
+* Click again on the same field to sequentially add exclusion2, exclusion3, etc.
 
-    self.helpTexts.addExclSpline = [[HOW TO: Add Exclusion (from Spline)
-1. Draw a spline outlining the hole/ditch you want to cut out of the field.
-2. Select BOTH the main 'fieldXXX' AND the drawn spline in the Scenegraph (CTRL + Click).
-3. Click 'Add Exclusion (from Spline)'.
-4. The script automatically creates the necessary exclusion folders and converts the spline into perfectly aligned polygon points.]]
+-- METHOD 2: FROM SPLINE --
+1. Draw a spline outlining the hole.
+2. Select BOTH the 'fieldXXX' AND the drawn spline (CTRL + Click).
+3. Click 'From Spline' to auto-generate the exclusion points.
+* Works sequentially too! Each new spline selected adds the next exclusion number.]]
 
     self.helpTexts.repaint = [[HOW TO: Repaint Fields
-1. Select a 'fieldXXX' or leave unselected to process all fields.
-2. Click 'Repaint Fields'.
-3. The script will paint the main polygon boundary.
-4. Immediately after, it will read all your 'exclusionX' groups and perfectly punch those holes back out of the terrainDetail layer.]]
+Paints the cultivated ground state to the terrainDetail layer and perfectly punches out any 'exclusionX' zones.]]
 
-    self.helpTexts.center = [[HOW TO: Center Indicators (Bounding Box)
-1. Select a 'fieldXXX' group or leave unselected to process all fields at once.
-2. Click 'Center Indicators (Bounding Box)'.
-3. The script calculates a virtual bounding box around the field boundaries.
-4. The nameIndicator and teleportIndicator are moved to the exact geometric center, completely ignoring uneven point densities along curved edges.]]
+    self.helpTexts.repaintFarmland = [[HOW TO: Repaint to Farmland
+Automatically paints the field's exact boundary shape into the 'farmlands' InfoLayer.
+The script assigns the Farmland ID based on the field's sequential order in the scenegraph.]]
+
+    self.helpTexts.clearGround = [[HOW TO: Clear Field Ground
+Removes the terrainDetail layer (plowed/cultivated states) within the selected field or across the map.]]
+
+    self.helpTexts.clearFruits = [[HOW TO: Clear Fruits
+Removes grass and foliage layers within the field boundaries.]]
+
+    self.helpTexts.center = [[HOW TO: Center Indicators
+Calculates a geometric bounding box around the field boundaries and places the indicators exactly in the center, ignoring uneven point densities.]]
+
+    self.helpTexts.alignPoints = [[HOW TO: Align Points to Terrain
+Snaps all polygon points (including exclusions) perfectly to the terrain surface height.]]
+
+    self.helpTexts.renamePoints = [[HOW TO: Rename Polygon Points
+Renames points sequentially (point1, point2...) to clean up the scenegraph.]]
+
+    self.helpTexts.renameFields = [[HOW TO: Rename Fields
+Automatically renames fields (e.g., field01) to match their underlying farmland ID.]]
+
+    self.helpTexts.convertOld = [[HOW TO: Convert Old Fields
+Converts legacy FS19/FS22 field structures (with angle/dimension setups) to the modern FS25 polygon point format.]]
+
+    self.helpTexts.validate = [[HOW TO: Validate Fields
+Checks for critical errors like duplicate vertices or overlapping farmlands that could crash the game or AI helpers.]]
+
+    self.helpTexts.updateSizes = [[HOW TO: Field Sizes
+Calculates the exact hectare size (subtracting any exclusion zones) and updates the floating editor note.]]
+
+    self.helpTexts.notes = [[HOW TO: Field Notes
+Toggles the visibility of the field name and size indicators floating above the fields.]]
+
+    self.helpTexts.debug = [[HOW TO: Render Viewport
+Toggles visual boundaries in the editor. Fields render blue/pink, exclusions render orange. A red box warns of invalid shapes.]]
 end
 
 function FieldToolkit:showHelp(topic)
@@ -102,86 +125,108 @@ end
 -- ==================================================================
 -- USER INTERFACE
 -- ==================================================================
+
+function FieldToolkit:createToolRow(parentSizer, labelText, btn1Txt, btn1Fn, btn2Txt, btn2Fn, helpTopic)
+    local rowSizer = UIColumnLayoutSizer.new()
+    UIPanel.new(parentSizer, rowSizer, -1, -1, -1, -1, BorderDirection.BOTTOM, 2)
+
+    UILabel.new(rowSizer, labelText, false, TextAlignment.LEFT, VerticalAlignment.TOP, -1, -1, 200, -1)
+
+    if btn1Txt then UIButton.new(rowSizer, btn1Txt, btn1Fn, self, -1, -1, 130, -1) end
+    if btn2Txt then UIButton.new(rowSizer, btn2Txt, btn2Fn, self, -1, -1, 130, -1, BorderDirection.LEFT, 5) end
+
+    if helpTopic then
+        UIButton.new(rowSizer, "(?)", function() self:showHelp(helpTopic) end, self, -1, -1, 30, -1, BorderDirection.LEFT, 5)
+    end
+end
+
 function FieldToolkit:generateUI()
     local frameRowSizer = UIRowLayoutSizer.new()
     self.window = UIWindow.new(frameRowSizer, "Field Toolkit Pro")
 
     local borderSizer = UIRowLayoutSizer.new()
     UIPanel.new(frameRowSizer, borderSizer, -1, -1, -1, -1, BorderDirection.NONE, 0, 1)
-    local rowSizer = UIRowLayoutSizer.new()
-    UIPanel.new(borderSizer, rowSizer, -1, -1, FieldToolkit.WINDOW_WIDTH, FieldToolkit.WINDOW_HEIGHT, BorderDirection.ALL, 10, 1)
+
+    local mainStack = UIRowLayoutSizer.new()
+    UIPanel.new(borderSizer, mainStack, -1, -1, FieldToolkit.WINDOW_WIDTH, FieldToolkit.WINDOW_HEIGHT, BorderDirection.ALL, 10, 1)
 
     -- ############ 1. FIELD CREATION ############
-    local colSizer = UIColumnLayoutSizer.new()
-    UIPanel.new(rowSizer, colSizer, -1, -1, -1, -1, BorderDirection.BOTTOM, 5, 1)
-    local title = UILabel.new(colSizer, "1. Field Creation", false, TextAlignment.LEFT, VerticalAlignment.CENTER, -1, -1, FieldToolkit.TEXT_WIDTH, FieldToolkit.TEXT_HEIGHT, BorderDirection.BOTTOM, 0)
-    title:setBold(true)
+    local sec1Sizer = UIRowLayoutSizer.new()
+    UIPanel.new(mainStack, sec1Sizer, -1, -1, -1, -1, BorderDirection.BOTTOM, 5)
+    local title1 = UILabel.new(sec1Sizer, "1. Field Creation", false, TextAlignment.LEFT, VerticalAlignment.TOP, -1, -1, FieldToolkit.TEXT_WIDTH, FieldToolkit.TEXT_HEIGHT, BorderDirection.BOTTOM, 5)
+    title1:setBold(true)
 
-    local btnSizer1 = UIRowLayoutSizer.new(); UIPanel.new(colSizer, btnSizer1)
-    UIButton.new(btnSizer1, "Create Field (Points)", function() self:createField(false) end, self)
-    UIButton.new(btnSizer1, "(?)", function() self:showHelp("createFieldPoints") end, self, -1, -1, 30, -1, BorderDirection.LEFT, 5)
+    self:createToolRow(sec1Sizer, "Create new Field:", "Points (Camera)", function() self:createField(false) end, "From Spline", function() self:createField(true) end, "createField")
 
-    local btnSizer2 = UIRowLayoutSizer.new(); UIPanel.new(colSizer, btnSizer2, -1,-1,-1,-1, BorderDirection.TOP, 2)
-    UIButton.new(btnSizer2, "Create Field (from Spline)", function() self:createField(true) end, self)
-    UIButton.new(btnSizer2, "(?)", function() self:showHelp("createFieldSpline") end, self, -1, -1, 30, -1, BorderDirection.LEFT, 5)
-
-    UIHorizontalLine.new(rowSizer, -1, -1, -1, -1, BorderDirection.BOTTOM, 5)
+    UIHorizontalLine.new(mainStack, -1, -1, -1, -1, BorderDirection.BOTTOM, 5)
 
     -- ############ 2. FIELD EXCLUSIONS ############
-    local colSizer2 = UIColumnLayoutSizer.new()
-    UIPanel.new(rowSizer, colSizer2, -1, -1, -1, -1, BorderDirection.BOTTOM, 5, 1)
-    local title2 = UILabel.new(colSizer2, "2. Field Exclusions (Holes)", false, TextAlignment.LEFT, VerticalAlignment.CENTER, -1, -1, FieldToolkit.TEXT_WIDTH, FieldToolkit.TEXT_HEIGHT, BorderDirection.BOTTOM, 0)
+    local sec2Sizer = UIRowLayoutSizer.new()
+    UIPanel.new(mainStack, sec2Sizer, -1, -1, -1, -1, BorderDirection.BOTTOM, 5)
+    local title2 = UILabel.new(sec2Sizer, "2. Field Exclusions (Holes)", false, TextAlignment.LEFT, VerticalAlignment.TOP, -1, -1, FieldToolkit.TEXT_WIDTH, FieldToolkit.TEXT_HEIGHT, BorderDirection.BOTTOM, 5)
     title2:setBold(true)
 
-    local btnSizer3 = UIRowLayoutSizer.new(); UIPanel.new(colSizer2, btnSizer3)
-    UIButton.new(btnSizer3, "Add Exclusion (Points)", function() self:addExclusion(false) end, self)
-    UIButton.new(btnSizer3, "(?)", function() self:showHelp("addExclPoints") end, self, -1, -1, 30, -1, BorderDirection.LEFT, 5)
-
-    local btnSizer4 = UIRowLayoutSizer.new(); UIPanel.new(colSizer2, btnSizer4, -1,-1,-1,-1, BorderDirection.TOP, 2)
-    UIButton.new(btnSizer4, "Add Exclusion (from Spline)", function() self:addExclusion(true) end, self)
-    UIButton.new(btnSizer4, "(?)", function() self:showHelp("addExclSpline") end, self, -1, -1, 30, -1, BorderDirection.LEFT, 5)
+    self:createToolRow(sec2Sizer, "Add Exclusion Hole:", "Points (Camera)", function() self:addExclusion(false) end, "From Spline", function() self:addExclusion(true) end, "addExcl")
 
     -- ############ HELP PANEL (Hidden by default) ############
     local helpPanelSizer = UIRowLayoutSizer.new()
-    self.helpPanel = UIPanel.new(rowSizer, helpPanelSizer, -1, -1, -1, -1, BorderDirection.ALL, 5, 1)
-    self.helpTextArea = UITextArea.new(helpPanelSizer, "", TextAlignment.LEFT, true, true, -1, -1, 580, 140)
+    self.helpPanel = UIPanel.new(mainStack, helpPanelSizer, -1, -1, -1, -1, BorderDirection.ALL, 5)
+    self.helpTextArea = UITextArea.new(helpPanelSizer, "", TextAlignment.LEFT, true, true, -1, -1, 600, 170)
     UIButton.new(helpPanelSizer, "Close Help", function() self:hideHelp() end, self, -1, -1, -1, 22, BorderDirection.TOP, 5)
     self.helpPanel:setVisible(false)
 
-    UIHorizontalLine.new(rowSizer, -1, -1, -1, -1, BorderDirection.BOTTOM, 5)
+    UIHorizontalLine.new(mainStack, -1, -1, -1, -1, BorderDirection.BOTTOM, 5)
 
     -- ############ 3. FIELD MAINTENANCE ############
-    local columnSizer = UIColumnLayoutSizer.new()
-    UIPanel.new(rowSizer, columnSizer, -1, -1, -1, -1, BorderDirection.BOTTOM, 5)
-    local title3 = UILabel.new(columnSizer, "3. Field Maintenance & Painting", false, TextAlignment.LEFT, VerticalAlignment.CENTER, -1, -1, FieldToolkit.TEXT_WIDTH, FieldToolkit.TEXT_HEIGHT, BorderDirection.BOTTOM, 0)
+    local sec3Sizer = UIRowLayoutSizer.new()
+    UIPanel.new(mainStack, sec3Sizer, -1, -1, -1, -1, BorderDirection.BOTTOM, 5)
+    local title3 = UILabel.new(sec3Sizer, "3. Field Maintenance & Painting", false, TextAlignment.LEFT, VerticalAlignment.TOP, -1, -1, FieldToolkit.TEXT_WIDTH, FieldToolkit.TEXT_HEIGHT, BorderDirection.BOTTOM, 5)
     title3:setBold(true)
 
-    local btnRow = UIRowLayoutSizer.new(); UIPanel.new(columnSizer, btnRow)
-    UIButton.new(btnRow, "Repaint Fields", function() self:repaintFields(getSelection(0)) end, self)
-    UIButton.new(btnRow, "(?)", function() self:showHelp("repaint") end, self, -1, -1, 30, -1, BorderDirection.LEFT, 5)
+    self:createToolRow(sec3Sizer, "Repaint Fields", "Selected Field", function() self:repaintFields(getSelection(0)) end, "All Fields", function() self:repaintFields() end, "repaint")
+    self:createToolRow(sec3Sizer, "Repaint to Farmland", "Selected Field", function() self:repaintFarmlandFields(getSelection(0)) end, "All Fields", function() self:repaintFarmlandFields() end, "repaintFarmland")
+    self:createToolRow(sec3Sizer, "Clear Field Ground", "Selected Field", function() self:clearFieldGround(getSelection(0)) end, "Map", function() self:clearFieldGround() end, "clearGround")
+    self:createToolRow(sec3Sizer, "Clear Fruits", "Selected Field", function() self:clearFruits(getSelection(0)) end, "All Fields", function() self:clearFruits() end, "clearFruits")
+    self:createToolRow(sec3Sizer, "Center Indicators", "Selected Field", function() self:centerIndicators(getSelection(0)) end, "All Fields", function() self:centerIndicators() end, "center")
+    self:createToolRow(sec3Sizer, "Align Points To Terrain", "Selected Field", function() self:alignPolygonPointsToTerrain(getSelection(0)) end, "All Fields", function() self:alignPolygonPointsToTerrain() end, "alignPoints")
+    self:createToolRow(sec3Sizer, "Rename Polygon Points", "Selected Field", function() self:renamePolygonPoints(getSelection(0)) end, "All Fields", function() self:renamePolygonPoints() end, "renamePoints")
+    self:createToolRow(sec3Sizer, "Rename Fields", "Selected Field", function() self:adjustFieldNames(getSelection(0)) end, "All Fields", function() self:adjustFieldNames() end, "renameFields")
+    self:createToolRow(sec3Sizer, "Convert old", "Selected Field", function() self:convertOldField(getSelection(0)) end, "All Fields", function() self:convertOldField() end, "convertOld")
+    self:createToolRow(sec3Sizer, "Validate Fields", "Selected Field", function() self:validateFields(getSelection(0)) end, "All Fields", function() self:validateFields() end, "validate")
 
-    UIButton.new(columnSizer, "Repaint Fields to Farmland", function() self:repaintFarmlandFields(getSelection(0)) end, self, -1, -1, -1, -1, BorderDirection.BOTTOM, 2, 1)
+    UIHorizontalLine.new(mainStack, -1, -1, -1, -1, BorderDirection.BOTTOM, 5)
 
-    -- NEW: Center Indicators button with help icon
-    local btnRowCenter = UIRowLayoutSizer.new(); UIPanel.new(columnSizer, btnRowCenter, -1, -1, -1, -1, BorderDirection.BOTTOM, 2)
-    UIButton.new(btnRowCenter, "Center Indicators (Bounding Box)", function() self:centerIndicators(getSelection(0)) end, self)
-    UIButton.new(btnRowCenter, "(?)", function() self:showHelp("center") end, self, -1, -1, 30, -1, BorderDirection.LEFT, 5)
+    -- ############ 4. SIZES & NOTES ############
+    local sec4Sizer = UIRowLayoutSizer.new()
+    UIPanel.new(mainStack, sec4Sizer, -1, -1, -1, -1, BorderDirection.BOTTOM, 5)
+    local title4 = UILabel.new(sec4Sizer, "4. Field Sizes & Notes", false, TextAlignment.LEFT, VerticalAlignment.TOP, -1, -1, FieldToolkit.TEXT_WIDTH, FieldToolkit.TEXT_HEIGHT, BorderDirection.BOTTOM, 5)
+    title4:setBold(true)
 
-    UIButton.new(columnSizer, "Align Polygon Points To Terrain", function() self:alignPolygonPointsToTerrain(getSelection(0)) end, self, -1, -1, -1, -1, BorderDirection.BOTTOM, 2, 1)
-    UIButton.new(columnSizer, "Rename Polygon Points", function() self:renamePolygonPoints(getSelection(0)) end, self, -1, -1, -1, -1, BorderDirection.BOTTOM, 2, 1)
-    UIButton.new(columnSizer, "Validate Fields", function() self:validateFields(getSelection(0)) end, self, -1, -1, -1, -1, BorderDirection.BOTTOM, 2, 1)
-    UIButton.new(columnSizer, "Update Field Sizes", function() self:updateFieldSizes(getSelection(0)) end, self, -1, -1, -1, -1, BorderDirection.BOTTOM, 2, 1)
-    UIButton.new(columnSizer, "Clear Field Ground", function() self:clearFieldGround(getSelection(0)) end, self, -1, -1, -1, -1, BorderDirection.BOTTOM, 2, 1)
+    local sizeRow = UIColumnLayoutSizer.new(); UIPanel.new(sec4Sizer, sizeRow, -1, -1, -1, -1, BorderDirection.BOTTOM, 2)
+    UILabel.new(sizeRow, "Field Size", false, TextAlignment.LEFT, VerticalAlignment.TOP, -1, -1, 200, -1)
+    UIButton.new(sizeRow, "Get Total", function() self:calculateTotalSize() end, self, -1, -1, 85, -1)
+    UIButton.new(sizeRow, "Update Field", function() self:updateFieldSizes(getSelection(0), false) end, self, -1, -1, 85, -1, BorderDirection.LEFT, 5)
+    UIButton.new(sizeRow, "Update All", function() self:updateFieldSizes(nil, true) end, self, -1, -1, 85, -1, BorderDirection.LEFT, 5)
+    UIButton.new(sizeRow, "(?)", function() self:showHelp("updateSizes") end, self, -1, -1, 30, -1, BorderDirection.LEFT, 5)
 
-    UIHorizontalLine.new(rowSizer, -1, -1, -1, -1, BorderDirection.BOTTOM, 5)
+    local noteRow = UIColumnLayoutSizer.new(); UIPanel.new(sec4Sizer, noteRow, -1, -1, -1, -1, BorderDirection.BOTTOM, 2)
+    UILabel.new(noteRow, "Field Notes", false, TextAlignment.LEFT, VerticalAlignment.TOP, -1, -1, 200, -1)
+    UIButton.new(noteRow, "Toggle Visibility All", function() self:toggleNoteRendering() end, self, -1, -1, 265, -1)
+    UIButton.new(noteRow, "(?)", function() self:showHelp("notes") end, self, -1, -1, 30, -1, BorderDirection.LEFT, 5)
 
-    local debugSizer = UIColumnLayoutSizer.new()
-    UIPanel.new(rowSizer, debugSizer, -1, -1, -1, -1, BorderDirection.BOTTOM, 5)
-    local envTitle = UILabel.new(debugSizer, "Debug", false, TextAlignment.LEFT, VerticalAlignment.CENTER, -1, -1, FieldToolkit.TEXT_WIDTH, FieldToolkit.TEXT_HEIGHT, BorderDirection.BOTTOM, 0)
+    UIHorizontalLine.new(mainStack, -1, -1, -1, -1, BorderDirection.BOTTOM, 5)
+
+    -- ############ 5. DEBUG ############
+    local debugSizer = UIRowLayoutSizer.new()
+    UIPanel.new(mainStack, debugSizer, -1, -1, -1, -1, BorderDirection.BOTTOM, 5)
+    local envTitle = UILabel.new(debugSizer, "Debug", false, TextAlignment.LEFT, VerticalAlignment.TOP, -1, -1, FieldToolkit.TEXT_WIDTH, FieldToolkit.TEXT_HEIGHT, BorderDirection.BOTTOM, 5)
     envTitle:setBold(true)
-    UIButton.new(debugSizer, "Toggle Debug Rendering", function() self:toggleDebugRendering() end, self, -1, -1, -1, -1, BorderDirection.BOTTOM, 2, 1)
 
-    -- layout and show window
+    local dRow = UIColumnLayoutSizer.new(); UIPanel.new(debugSizer, dRow, -1, -1, -1, -1, BorderDirection.BOTTOM, 2)
+    UILabel.new(dRow, "Render Viewport", false, TextAlignment.LEFT, VerticalAlignment.TOP, -1, -1, 200, -1)
+    UIButton.new(dRow, "Toggle Debug Rendering", function() self:toggleDebugRendering() end, self, -1, -1, 265, -1)
+    UIButton.new(dRow, "(?)", function() self:showHelp("debug") end, self, -1, -1, 30, -1, BorderDirection.LEFT, 5)
+
     self.window:setOnCloseCallback(function() self:onClose() end)
     self.window:showWindow()
 end
@@ -198,31 +243,22 @@ end
 -- CORE LOGIC METHODS
 -- ==================================================================
 
--- Extracts points from a given spline node and creates transform groups under the parentNode
 function FieldToolkit:_splineToPoints(splineNode, parentNode, terrainNode)
     if not getHasClassId(splineNode, ClassIds.SHAPE) or not getHasClassId(getGeometry(splineNode), ClassIds.SPLINE) then
         return false
     end
 
     for j = 0, getSplineNumOfCV(splineNode) - 1 do
-        -- Get local CV coordinates
-        local cx, cy, cz = getSplineCV(splineNode, j)
-
-        -- Convert to world coordinates to fetch correct terrain height
-        local wx, wy, wz = localToWorld(splineNode, cx, cy, cz)
-        local ty = getTerrainHeightAtWorldPos(terrainNode, wx, 0, wz)
-
-        -- Convert back to local coordinates relative to the target parent transform group
-        local lx, ly, lz = worldToLocal(parentNode, wx, ty, wz)
-
+        local wx, wy, wz = getSplineCV(splineNode, j)
+        local ty = getTerrainHeightAtWorldPos(terrainNode, wx, wy, wz)
         local pointTG = createTransformGroup("point" .. tostring(j + 1))
-        setTranslation(pointTG, lx, ly, lz)
         link(parentNode, pointTG)
+        setWorldTranslation(pointTG, wx, ty, wz)
     end
+
     return true
 end
 
--- Generates the base structure (indicators, attributes) for a new field
 function FieldToolkit:_generateBaseFieldStructure(fieldNode, newFieldName, spawnX, spawnY, spawnZ)
     local field = createTransformGroup(newFieldName)
     link(fieldNode, field)
@@ -234,7 +270,6 @@ function FieldToolkit:_generateBaseFieldStructure(fieldNode, newFieldName, spawn
     local note = createNoteNode(nameIndicator, newFieldName, 0, 0, 0, true)
     link(nameIndicator, note)
 
-    -- Place indicators at spawn location
     setWorldTranslation(nameIndicator, spawnX, spawnY, spawnZ)
     setWorldTranslation(teleportIndicator, spawnX, spawnY, spawnZ)
 
@@ -252,8 +287,6 @@ function FieldToolkit:_generateBaseFieldStructure(fieldNode, newFieldName, spawn
     return field, polygonPoints
 end
 
-
--- Creates a field either from camera position or from a selected spline
 function FieldToolkit:createField(fromSpline)
     local fieldNode = FieldUtil.getFieldsRootNode()
     if fieldNode == nil then
@@ -277,9 +310,10 @@ function FieldToolkit:createField(fromSpline)
             MessageBox.show("Error", "Please select a valid Spline to create the field from.")
             return nil
         end
-        -- Use the first CV of the spline as the indicator spawn point
-        local cx, cy, cz = getSplineCV(splineNode, 0)
-        spawnX, spawnY, spawnZ = localToWorld(splineNode, cx, cy, cz)
+        local wx, wy, wz = getSplineCV(splineNode, 0)
+        spawnX = wx
+        spawnZ = wz
+        spawnY = getTerrainHeightAtWorldPos(terrainNode, spawnX, 0, spawnZ)
     else
         local cam = getCamera(0)
         if cam ~= 0 then
@@ -305,12 +339,16 @@ function FieldToolkit:createField(fromSpline)
     end
 
     FieldToolkit.updateFieldNote(field)
+
+    -- Auto-center indicators right after creation!
+    -- For splines, it instantly finds the true center.
+    -- For points, it safely targets the single initial point.
+    self:centerIndicators(field)
+
     addSelection(field)
     return field
 end
 
-
--- Smartly adds an exclusion zone to a selected field (via points or spline)
 function FieldToolkit:addExclusion(fromSpline)
     local terrainNode = EditorUtils.getIdsByName("terrain")[1]
     if terrainNode == nil then return end
@@ -318,7 +356,6 @@ function FieldToolkit:addExclusion(fromSpline)
     local field = nil
     local splineNode = nil
 
-    -- Determine selection based on mode
     if fromSpline then
         for i = 0, getNumSelected() - 1 do
             local sel = getSelection(i)
@@ -340,7 +377,6 @@ function FieldToolkit:addExclusion(fromSpline)
         end
     end
 
-    -- 1. Get or create the 'exclusionPoints' container
     local exclusionIndexPath = getUserAttribute(field, "exclusionIndex")
     local exclusionPointsRoot = nil
 
@@ -354,7 +390,6 @@ function FieldToolkit:addExclusion(fromSpline)
         setUserAttribute(field, "exclusionIndex", UserAttributeType.STRING, EditorUtils.getNodeIndexPath(field, exclusionPointsRoot))
     end
 
-    -- 2. Determine the next available exclusion ID
     local nextId = 1
     for i = 0, getNumOfChildren(exclusionPointsRoot) - 1 do
         local child = getChildAt(exclusionPointsRoot, i)
@@ -364,12 +399,10 @@ function FieldToolkit:addExclusion(fromSpline)
         end
     end
 
-    -- 3. Create the new exclusion folder
     local newExclName = "exclusion" .. nextId
     local newExclGroup = createTransformGroup(newExclName)
     link(exclusionPointsRoot, newExclGroup)
 
-    -- 4. Populate the folder
     if fromSpline then
         self:_splineToPoints(splineNode, newExclGroup, terrainNode)
         print(string.format("Added '%s' to '%s' from Spline.", newExclName, getName(field)))
@@ -392,8 +425,17 @@ function FieldToolkit:addExclusion(fromSpline)
     end
 end
 
+-- ==================================================================
+-- FIELD MAINTENANCE & UTILITY METHODS
+-- ==================================================================
 
-function FieldToolkit:repaintFields(selectedNode)
+function FieldToolkit:worldPosToLocalInfoLayerPos(infoLayer, terrainSize, x, z)
+    local width, height = getBitVectorMapSize(infoLayer)
+    return math.floor(width * (x+terrainSize*0.5) / terrainSize),
+           math.floor(height * (z+terrainSize*0.5) / terrainSize)
+end
+
+function FieldToolkit:adjustFieldNames(selectedNode)
     local fieldNode = FieldUtil.getFieldsRootNode()
     if fieldNode == nil then
         printError("No fields node defined")
@@ -406,8 +448,214 @@ function FieldToolkit:repaintFields(selectedNode)
         return
     end
 
+    local infoLayer = getInfoLayerFromTerrain(terrainNode, "farmlands")
+    if infoLayer == nil or infoLayer == 0 then
+        print("    Could not find farmlands info layer")
+        return
+    end
+
+    local terrainSize = getTerrainSize(terrainNode)
+    local numChannels = getBitVectorMapNumChannels(infoLayer)
     local selectedField = self:getFieldRootByNode(selectedNode)
 
+    local fields = {}
+
+    for i=0, getNumOfChildren(fieldNode)-1 do
+        local field = getChildAt(fieldNode, i)
+        if selectedField == nil or selectedField == field then
+            local oldName = getName(field)
+
+            local x, z = 0, 0
+            local polyPath = getUserAttribute(field, "polygonIndex")
+            local polygonNode = nil
+            if polyPath ~= nil then
+                polygonNode = EditorUtils.getNodeByIndexPath(polyPath, field)
+            end
+
+            -- FIX: Calculate the geometric center of the field on the fly to get a safe inside point
+            if polygonNode ~= nil and getNumOfChildren(polygonNode) > 0 then
+                local numPoints = getNumOfChildren(polygonNode)
+                local minX, minZ = math.huge, math.huge
+                local maxX, maxZ = -math.huge, -math.huge
+
+                for j=0, numPoints-1 do
+                    local point = getChildAt(polygonNode, j)
+                    local px, _, pz = getWorldTranslation(point)
+                    if px < minX then minX = px end
+                    if px > maxX then maxX = px end
+                    if pz < minZ then minZ = pz end
+                    if pz > maxZ then maxZ = pz end
+                end
+
+                -- Use the exact center of the bounding box
+                x = minX + ((maxX - minX) * 0.5)
+                z = minZ + ((maxZ - minZ) * 0.5)
+            end
+
+            local lx, lz = self:worldPosToLocalInfoLayerPos(infoLayer, terrainSize, x, z)
+            local farmlandId = getBitVectorMapPoint(infoLayer, lx, lz, 0, numChannels)
+
+            local name = string.format("field%02d", farmlandId)
+
+            if oldName ~= name then
+                setName(field, name)
+                print(string.format("    Adjusted field name from '%s' to '%s'", oldName, name))
+            end
+
+            FieldToolkit.updateFieldNote(field)
+
+            if selectedField == nil then
+                table.insert(fields, {node=field, name=name})
+            end
+        end
+    end
+
+    if #fields > 0 then
+        table.sort(fields, function(a, b)
+            return a.name < b.name
+        end)
+
+        for k, field in ipairs(fields) do
+            link(fieldNode, field.node, k-1)
+        end
+    end
+
+    print("Adjusted field names")
+end
+
+function FieldToolkit:clearFruits(selectedNode)
+    local fieldNode = FieldUtil.getFieldsRootNode()
+    if fieldNode == nil then return end
+    local terrainNode = EditorUtils.getIdsByName("terrain")[1]
+    if terrainNode == nil then return end
+
+    local grass = getTerrainDataPlaneByName(terrainNode, "grass")
+    if grass == 0 or grass == nil then
+        printError("No grass foliage layer found")
+        return
+    end
+
+    local selectedField = self:getFieldRootByNode(selectedNode)
+    local modifier = DensityMapModifier.new(grass, 0, 3, terrainNode)
+    modifier:clearPolygonPoints()
+    modifier:setNewTypeIndexMode(DensityIndexCompareMode.ZERO)
+
+    for i=0, getNumOfChildren(fieldNode)-1 do
+        local field = getChildAt(fieldNode, i)
+        if selectedField == nil or selectedField == field then
+            local indexPath = getUserAttribute(field, "polygonIndex")
+            local polygon = EditorUtils.getNodeByIndexPath(indexPath, field)
+            if polygon ~= nil then
+                modifier:clearPolygonPoints()
+                for j=0, getNumOfChildren(polygon)-1 do
+                    local polygonPoint = getChildAt(polygon, j)
+                    local x, _, z = getWorldTranslation(polygonPoint)
+                    modifier:addPolygonPointWorldCoords(x, z)
+                end
+                modifier:executeSet(0)
+                print("    Cleared fruits on field '"..getName(field).."'")
+            end
+        end
+    end
+    print("Cleared field fruits")
+end
+
+function FieldToolkit:convertOldField(selectedNode)
+    local fieldNode = FieldUtil.getFieldsRootNode()
+    if fieldNode == nil then return end
+
+    for i=0, getNumOfChildren(fieldNode)-1 do
+        local field = getChildAt(fieldNode, i)
+        if selectedNode == nil or selectedNode == field then
+            local angle = getUserAttribute(field, "fieldAngle")
+            local dimensionIndex = getUserAttribute(field, "fieldDimensionIndex")
+            local nameIndicatorIndex = getUserAttribute(field, "nameIndicatorIndex")
+            local fieldMissionAllowed = getUserAttribute(field, "fieldMissionAllowed")
+            local fieldGrassMission = getUserAttribute(field, "fieldGrassMission")
+
+            local isOld = angle ~= nil or dimensionIndex ~= nil or nameIndicatorIndex ~= nil or fieldMissionAllowed ~= nil or fieldGrassMission ~= nil
+
+            if isOld then
+                setName(field, getName(field) .. "_old")
+                local newField = self:createField(false)
+
+                angle = tonumber(angle)
+                if angle ~= nil then setUserAttribute(newField, "angle", UserAttributeType.INTEGER, angle) end
+                if fieldMissionAllowed then setUserAttribute(newField, "missionAllowed", UserAttributeType.BOOLEAN, true) end
+                if fieldGrassMission then setUserAttribute(newField, "missionOnlyGrass", UserAttributeType.BOOLEAN, true) end
+
+                if nameIndicatorIndex ~= nil then
+                    local oldNameIndicatorNode = EditorUtils.getNodeByIndexPath(nameIndicatorIndex, field)
+                    if oldNameIndicatorNode ~= nil then
+                        local nameIndicatorNode = EditorUtils.getNodeByIndexPath(getUserAttribute(newField, "nameIndicatorIndex"), newField)
+                        local teleportIndicatorNode = EditorUtils.getNodeByIndexPath(getUserAttribute(newField, "teleportIndicatorIndex"), newField)
+                        local x, y, z = getWorldTranslation(oldNameIndicatorNode)
+                        setWorldTranslation(nameIndicatorNode, x, y, z)
+                        setWorldTranslation(teleportIndicatorNode, x, y, z)
+                    end
+                end
+
+                if dimensionIndex ~= nil then
+                    local oldDimensionNode = EditorUtils.getNodeByIndexPath(dimensionIndex, field)
+                    if oldDimensionNode ~= nil then
+                        local polygonNode = EditorUtils.getNodeByIndexPath(getUserAttribute(newField, "polygonIndex"), newField)
+
+                        local function copyOrCreatePolygonPoint(node, index)
+                            local polygonPoint
+                            if index > getNumOfChildren(polygonNode)-1 then
+                                polygonPoint = createTransformGroup("point" .. index)
+                                link(polygonNode, polygonPoint)
+                            else
+                                polygonPoint = getChildAt(polygonNode, index)
+                            end
+                            local x, y, z = getWorldTranslation(node)
+                            setWorldTranslation(polygonPoint, x, y, z)
+                        end
+
+                        local index = 0
+                        for i=0, getNumOfChildren(oldDimensionNode)-1 do
+                            local p1 = getChildAt(oldDimensionNode, i)
+                            copyOrCreatePolygonPoint(p1, index)
+                            index = index + 1
+
+                            local p2 = getChildAt(p1, 0)
+                            copyOrCreatePolygonPoint(p2, index)
+                            index = index + 1
+
+                            local p3 = getChildAt(p1, 1)
+                            copyOrCreatePolygonPoint(p3, index)
+                            index = index + 1
+
+                            local p4 = createTransformGroup("p4")
+                            link(p1, p4)
+
+                            local x1, y, z1 = getWorldTranslation(p1)
+                            local x2, _, z2 = getWorldTranslation(p2)
+                            local x3, _, z3 = getWorldTranslation(p3)
+
+                            local dirX = x3 - x2
+                            local dirZ = z3 - z2
+                            setWorldTranslation(p4, x1 + dirX, y, z1 + dirZ)
+
+                            copyOrCreatePolygonPoint(p4, index)
+                            index = index + 1
+                        end
+                    end
+                end
+                FieldToolkit.updateFieldNote(newField)
+                print("Converted old field structure to new polygon format.")
+            end
+        end
+    end
+end
+
+function FieldToolkit:repaintFields(selectedNode)
+    local fieldNode = FieldUtil.getFieldsRootNode()
+    if fieldNode == nil then return end
+    local terrainNode = EditorUtils.getIdsByName("terrain")[1]
+    if terrainNode == nil then return end
+
+    local selectedField = self:getFieldRootByNode(selectedNode)
     local terrainDetail, _ = getTerrainDataPlaneByName(terrainNode, "terrainDetail")
     local modifier = DensityMapModifier.new(terrainDetail, 0, 4, terrainNode)
 
@@ -418,9 +666,7 @@ function FieldToolkit:repaintFields(selectedNode)
             local polygon = EditorUtils.getNodeByIndexPath(indexPath, field)
 
             if polygon ~= nil then
-                -- STEP 1: Paint the main field boundary
                 modifier:clearPolygonPoints()
-
                 for j=0, getNumOfChildren(polygon)-1 do
                     local polygonPoint = getChildAt(polygon, j)
                     local x, _, z = getWorldTranslation(polygonPoint)
@@ -430,46 +676,31 @@ function FieldToolkit:repaintFields(selectedNode)
                 modifier:executeSet(2)
                 print("    Repainted field '"..getName(field).."'")
 
-                -- STEP 2: Punch out multiple exclusion zones
                 local exclusionIndexPath = getUserAttribute(field, "exclusionIndex")
                 if exclusionIndexPath ~= nil then
                     local exclusionPointsRoot = EditorUtils.getNodeByIndexPath(exclusionIndexPath, field)
-
                     if exclusionPointsRoot ~= nil then
                         for e=0, getNumOfChildren(exclusionPointsRoot)-1 do
                             local exclusionPoly = getChildAt(exclusionPointsRoot, e)
-
-                            -- Only punch if it has at least 3 points to form a surface
                             if getNumOfChildren(exclusionPoly) >= 3 then
                                 modifier:clearPolygonPoints()
-
                                 for k=0, getNumOfChildren(exclusionPoly)-1 do
                                     local excPoint = getChildAt(exclusionPoly, k)
                                     local ex, _, ez = getWorldTranslation(excPoint)
                                     modifier:addPolygonPointWorldCoords(ex, ez)
                                 end
-
-                                modifier:executeSet(0) -- 0 = clear ground
+                                modifier:executeSet(0)
                                 print("      -> Punched exclusion zone '"..getName(exclusionPoly).."' in field '"..getName(field).."'")
                             end
                         end
                     end
                 end
-
-            else
-                print("    Could not repaint field '"..getName(field).."'. Cannot find field 'polygonIndex'")
             end
         end
-
         FieldToolkit.updateFieldNote(field)
     end
-
     print("Repainted fields")
 end
-
--- ==================================================================
--- UTILITY & MAINTENANCE METHODS
--- ==================================================================
 
 function FieldToolkit:alignPolygonPointsToTerrain(selectedNode)
     local fieldNode = FieldUtil.getFieldsRootNode()
@@ -482,8 +713,6 @@ function FieldToolkit:alignPolygonPointsToTerrain(selectedNode)
     for i=0, getNumOfChildren(fieldNode)-1 do
         local field = getChildAt(fieldNode, i)
         if selectedField == nil or selectedField == field then
-
-            -- STEP 1: Align Main Polygon
             local indexPath = getUserAttribute(field, "polygonIndex")
             local polygon = EditorUtils.getNodeByIndexPath(indexPath, field)
             if polygon ~= nil then
@@ -493,10 +722,8 @@ function FieldToolkit:alignPolygonPointsToTerrain(selectedNode)
                     y = getTerrainHeightAtWorldPos(terrainNode, x, y, z)
                     setWorldTranslation(polygonPoint, x, y, z)
                 end
-                print("    Aligned main polygon points for field '"..getName(field).."'")
             end
 
-            -- STEP 2: Align Exclusion Points
             local exclusionIndexPath = getUserAttribute(field, "exclusionIndex")
             if exclusionIndexPath ~= nil then
                 local exclusionPointsRoot = EditorUtils.getNodeByIndexPath(exclusionIndexPath, field)
@@ -510,7 +737,6 @@ function FieldToolkit:alignPolygonPointsToTerrain(selectedNode)
                             setWorldTranslation(excPoint, ex, ey, ez)
                         end
                     end
-                    print("    Aligned exclusion points for field '"..getName(field).."'")
                 end
             end
         end
@@ -528,8 +754,6 @@ function FieldToolkit:renamePolygonPoints(selectedNode)
     for i=0, getNumOfChildren(fieldNode)-1 do
         local field = getChildAt(fieldNode, i)
         if selectedField == nil or selectedField == field then
-
-            -- STEP 1: Rename Main Polygon Points
             local indexPath = getUserAttribute(field, "polygonIndex")
             local polygon = EditorUtils.getNodeByIndexPath(indexPath, field)
             if polygon ~= nil then
@@ -539,7 +763,6 @@ function FieldToolkit:renamePolygonPoints(selectedNode)
                 end
             end
 
-            -- STEP 2: Rename Exclusion Folders and Points
             local exclusionIndexPath = getUserAttribute(field, "exclusionIndex")
             if exclusionIndexPath ~= nil then
                 local exclusionPointsRoot = EditorUtils.getNodeByIndexPath(exclusionIndexPath, field)
@@ -547,7 +770,6 @@ function FieldToolkit:renamePolygonPoints(selectedNode)
                     for e=0, getNumOfChildren(exclusionPointsRoot)-1 do
                         local exclusionPoly = getChildAt(exclusionPointsRoot, e)
                         setName(exclusionPoly, string.format("exclusion%d", e+1))
-
                         for k=0, getNumOfChildren(exclusionPoly)-1 do
                             local excPoint = getChildAt(exclusionPoly, k)
                             setName(excPoint, string.format("point%d", k+1))
@@ -599,8 +821,6 @@ function FieldToolkit:centerIndicators(selectedNode)
 
                 if nameInd ~= nil then setWorldTranslation(nameInd, centerX, centerY, centerZ) end
                 if tpInd ~= nil then setWorldTranslation(tpInd, centerX, centerY, centerZ) end
-
-                print(string.format("    Centered indicators (Bounding Box) for field '%s'", getName(field)))
             end
         end
     end
@@ -643,8 +863,6 @@ function FieldToolkit:validateFields(selectedNode)
                     local x, _, z = getWorldTranslation(firstPolygonPoint)
                     local farmlandId = infoLayer:getValueAtWorldPos(x, z)
 
-                    print(string.format("  Validate field '"..getName(field).."' (Farmland '%d')", farmlandId))
-
                     if farmlandIdFieldMapping[farmlandId] ~= nil then
                         printError(string.format("    Error: There already exists field '%s' on farmland '%s'", farmlandIdFieldMapping[farmlandId], farmlandId))
                         isValid = false
@@ -682,12 +900,9 @@ function FieldToolkit:validateFields(selectedNode)
                     end
 
                     if isValid then farmlandIdFieldMapping[farmlandId] = i+1 end
-                else
-                    printError("  Error: No polygon points defined in node '" .. getName(polygon) .. "'")
                 end
             end
 
-            -- Check Duplicate Vertices for Exclusions
             local exclusionIndexPath = getUserAttribute(field, "exclusionIndex")
             if exclusionIndexPath ~= nil then
                 local exclusionPointsRoot = EditorUtils.getNodeByIndexPath(exclusionIndexPath, field)
@@ -695,7 +910,6 @@ function FieldToolkit:validateFields(selectedNode)
                     for e=0, getNumOfChildren(exclusionPointsRoot)-1 do
                         local exclusionPoly = getChildAt(exclusionPointsRoot, e)
                         local excLastX, excLastY, excLastZ
-
                         for k=0, getNumOfChildren(exclusionPoly)-1 do
                             local excPoint = getChildAt(exclusionPoly, k)
                             local ex, ey, ez = getWorldTranslation(excPoint)
@@ -740,10 +954,10 @@ function FieldToolkit:repaintFarmlandFields(selectedNode)
                     modifier:addPolygonPointWorldCoords(x, z)
                 end
                 modifier:executeSet(i + 1)
-                print("    Repainted field '"..getName(field).."' to farmlands")
             end
         end
     end
+    print("Repainted fields to farmlands")
 end
 
 function FieldToolkit:clearFieldGround(selectedNode)
@@ -770,50 +984,6 @@ function FieldToolkit:clearFieldGround(selectedNode)
     print("Cleared field ground")
 end
 
-function FieldToolkit:updateFieldSizes(selectedNode)
-    local fieldNode = FieldUtil.getFieldsRootNode()
-    if fieldNode == nil then return end
-    local selectedField = self:getFieldRootByNode(selectedNode)
-
-    for i=0, getNumOfChildren(fieldNode)-1 do
-        local field = getChildAt(fieldNode, i)
-        if selectedField == nil or selectedField == field then
-            FieldToolkit.updateFieldNote(field)
-        end
-    end
-end
-
-function FieldToolkit.getFieldSize(fieldNode)
-    local indexPath = getUserAttribute(fieldNode, "polygonIndex")
-    local polygonPoints = EditorUtils.getNodeByIndexPath(indexPath, fieldNode)
-    if polygonPoints ~= nil and getNumOfChildren(polygonPoints) >= 3 then
-        local size = 0
-        local lastPoint = getChildAt(polygonPoints, getNumOfChildren(polygonPoints)-1)
-        for i=0, getNumOfChildren(polygonPoints)-1 do
-            local point = getChildAt(polygonPoints, i)
-            local x1, _, z1 = getWorldTranslation(point)
-            local x2, _, z2 = getWorldTranslation(lastPoint)
-            size = size + ((x2 - x1) * ((z1 + z2) * 0.5))
-            lastPoint = point
-        end
-        return math.abs(size) / 10000
-    end
-    return 0
-end
-
-function FieldToolkit.updateFieldNote(field)
-    local indicatorPath = getUserAttribute(field, "nameIndicatorIndex")
-    local indicator = EditorUtils.getNodeByIndexPath(indicatorPath, field)
-    if indicator ~= nil and getNumOfChildren(indicator) == 1 then
-        local fieldSize = FieldToolkit.getFieldSize(field)
-        local noteName = string.format("%s\n%.2f ha", getName(field), fieldSize)
-        local note = getChildAt(indicator, 0)
-        if getNoteNodeText(note) ~= noteName then
-            setNoteNodeText(note, noteName)
-        end
-    end
-end
-
 function FieldToolkit:getFieldRootByNode(node)
     if node == nil or node == 0 then return nil end
     while true do
@@ -822,6 +992,131 @@ function FieldToolkit:getFieldRootByNode(node)
         node = getParent(node)
     end
     return nil
+end
+
+-- ==================================================================
+-- FIELD SIZES & NOTES LOGIC
+-- ==================================================================
+
+function FieldToolkit:calculateTotalSize()
+    local fieldNode = FieldUtil.getFieldsRootNode()
+    if fieldNode == nil then return end
+
+    local totalFarmland = 0
+    local totalActual = 0
+
+    for i=0, getNumOfChildren(fieldNode)-1 do
+        local field = getChildAt(fieldNode, i)
+        local fTotal, fActual = FieldToolkit.getFieldSizes(field)
+        totalFarmland = totalFarmland + fTotal
+        totalActual = totalActual + fActual
+    end
+
+    print(string.format("Calculated total map sizes: Farmland = %.2f ha | Cultivated = %.2f ha", totalFarmland, totalActual))
+    MessageBox.show("Field Size", string.format("Total Farmland Area: %.2f ha\nTotal Cultivated Area: %.2f ha", totalFarmland, totalActual))
+end
+
+function FieldToolkit:updateFieldSizes(selectedNode, isUpdateAll)
+    local fieldNode = FieldUtil.getFieldsRootNode()
+    if fieldNode == nil then return end
+
+    if not isUpdateAll then
+        local selectedField = self:getFieldRootByNode(selectedNode)
+        if selectedField == nil then
+            printError("Please select a 'fieldXXX' in the scenegraph to update, or use 'Update All'.")
+            return
+        end
+        FieldToolkit.updateFieldNote(selectedField)
+        print(string.format("Updated field sizes and note for '%s'", getName(selectedField)))
+    else
+        for i=0, getNumOfChildren(fieldNode)-1 do
+            local field = getChildAt(fieldNode, i)
+            FieldToolkit.updateFieldNote(field)
+        end
+        print("Updated field sizes and notes for all fields on the map.")
+    end
+end
+
+-- Calculates 2D polygon area in hectares using the Shoelace formula
+function FieldToolkit.getPolygonArea(polygonPointsGroup)
+    if polygonPointsGroup ~= nil and getNumOfChildren(polygonPointsGroup) >= 3 then
+        local size = 0
+        local lastPoint = getChildAt(polygonPointsGroup, getNumOfChildren(polygonPointsGroup)-1)
+        for i=0, getNumOfChildren(polygonPointsGroup)-1 do
+            local point = getChildAt(polygonPointsGroup, i)
+            local x1, _, z1 = getWorldTranslation(point)
+            local x2, _, z2 = getWorldTranslation(lastPoint)
+            size = size + ((x2 - x1) * ((z1 + z2) * 0.5))
+            lastPoint = point
+        end
+        return math.abs(size) / 10000 -- Convert m^2 to ha
+    end
+    return 0
+end
+
+-- Returns two values: Total Farmland Area, Actual Cultivated Area (minus exclusions)
+function FieldToolkit.getFieldSizes(fieldNode)
+    local indexPath = getUserAttribute(fieldNode, "polygonIndex")
+    local polygonPoints = EditorUtils.getNodeByIndexPath(indexPath, fieldNode)
+
+    local totalArea = FieldToolkit.getPolygonArea(polygonPoints)
+    local actualArea = totalArea
+
+    local exclusionIndexPath = getUserAttribute(fieldNode, "exclusionIndex")
+    if exclusionIndexPath ~= nil then
+        local exclusionPointsRoot = EditorUtils.getNodeByIndexPath(exclusionIndexPath, fieldNode)
+        if exclusionPointsRoot ~= nil then
+            for e=0, getNumOfChildren(exclusionPointsRoot)-1 do
+                local exclusionPoly = getChildAt(exclusionPointsRoot, e)
+                -- Subtract the area of each valid exclusion hole
+                actualArea = actualArea - FieldToolkit.getPolygonArea(exclusionPoly)
+            end
+        end
+    end
+
+    return totalArea, math.max(0, actualArea)
+end
+
+function FieldToolkit.updateFieldNote(field)
+    local indicatorPath = getUserAttribute(field, "nameIndicatorIndex")
+    local indicator = EditorUtils.getNodeByIndexPath(indicatorPath, field)
+    if indicator ~= nil and getNumOfChildren(indicator) == 1 then
+        local totalArea, actualArea = FieldToolkit.getFieldSizes(field)
+
+        -- Multi-line note showing both the bounding farmland and the net field area
+        local noteName = string.format("%s\nFarmland: %.2f ha\nCultivated: %.2f ha", getName(field), totalArea, actualArea)
+        local note = getChildAt(indicator, 0)
+
+        if getNoteNodeText(note) ~= noteName then
+            setNoteNodeText(note, noteName)
+        end
+    end
+end
+
+function FieldToolkit:toggleNoteRendering()
+    local fieldNode = FieldUtil.getFieldsRootNode()
+    if fieldNode == nil then return end
+
+    local isActive
+    for i=0, getNumOfChildren(fieldNode)-1 do
+        local field = getChildAt(fieldNode, i)
+        local indicatorPath = getUserAttribute(field, "nameIndicatorIndex")
+        local indicator = EditorUtils.getNodeByIndexPath(indicatorPath, field)
+        if indicator ~= nil and getNumOfChildren(indicator) == 1 then
+            local note = getChildAt(indicator, 0)
+            if isActive == nil then
+                isActive = not getVisibility(note)
+            end
+            setVisibility(note, isActive)
+            if isActive then
+                FieldToolkit.updateFieldNote(field)
+            end
+        end
+    end
+
+    if isActive ~= nil then
+        print("Toggled field notes visibility to: " .. tostring(isActive))
+    end
 end
 
 -- ==================================================================
@@ -864,6 +1159,8 @@ function FieldToolkit:draw()
         return
     end
 
+    local safeFrame = 3 -- 3m red border width
+
     for fieldIndex=0, getNumOfChildren(self.fieldRootNode)-1 do
         local fieldNode = getChildAt(self.fieldRootNode, fieldIndex)
         if self.colorByField[fieldIndex] == nil then
@@ -876,6 +1173,7 @@ function FieldToolkit:draw()
 
         if polygonPoints ~= nil and getNumOfChildren(polygonPoints) > 0 then
             local positions = {}
+            local sum = 0
             local lastNode = getChildAt(polygonPoints, getNumOfChildren(polygonPoints)-1)
 
             for i=0, getNumOfChildren(polygonPoints)-1 do
@@ -890,12 +1188,57 @@ function FieldToolkit:draw()
                 local lastX, lastY, lastZ = getWorldTranslation(lastNode)
                 drawDebugLine(x, y, z, 0, 0, 0, lastX, lastY, lastZ, 0, 0, 0, false)
                 drawDebugPoint(x, y, z, 0, 0, 0, 1, false)
+
+                sum = sum + (x-lastX)*(z+lastZ)
                 lastNode = point
             end
-            drawDebugPolygon(positions, r, g, b, a, true)
+
+            if #positions >= 9 then
+                local dir = -1
+                if sum > 0 then dir = 1 end
+
+                local lastX = positions[#positions-2]
+                local lastY = positions[#positions-1]
+                local lastZ = positions[#positions]
+
+                local safeFramePos = {}
+                for i=1, #positions, 3 do
+                    local x = positions[i]
+                    local y = positions[i+1]
+                    local z = positions[i+2]
+
+                    local dx, dy, dz = x-lastX, y-lastY, z-lastZ
+                    if dx ~= 0 or dy ~= 0 or dz ~= 0 then
+                        local dirX, dirY, dirZ = MathUtil.vector3Normalize(dx, dy, dz)
+                        local normX, normY, normZ
+
+                        if dir > 0 then
+                            normX, normY, normZ = MathUtil.crossProduct(dirX, dirY, dirZ, 0, 1, 0)
+                        else
+                            normX, normY, normZ = MathUtil.crossProduct(0, 1, 0, dirX, dirY, dirZ)
+                        end
+
+                        normX = normX * safeFrame
+                        normY = normY * safeFrame
+                        normZ = normZ * safeFrame
+
+                        local xOffset, yOffset, zOffset = x + normX, y + normY, z + normZ
+                        local lastXOffset, lastYOffset, lastZOffset = lastX + normX, lastY + normY, lastZ + normZ
+
+                        safeFramePos[1] = x; safeFramePos[2] = y; safeFramePos[3] = z
+                        safeFramePos[4] = lastX; safeFramePos[5] = lastY; safeFramePos[6] = lastZ
+                        safeFramePos[7] = lastXOffset; safeFramePos[8] = lastYOffset; safeFramePos[9] = lastZOffset
+                        safeFramePos[10] = xOffset; safeFramePos[11] = yOffset; safeFramePos[12] = zOffset
+
+                        drawDebugPolygon(safeFramePos, 1, 0, 0, 0.4, false)
+                    end
+                    lastX = x; lastY = y; lastZ = z
+                end
+            end
+
+            drawDebugPolygon(positions, r, g, b, a, false)
         end
 
-        -- Draw Exclusions in orange
         local exclusionIndexPath = getUserAttribute(fieldNode, "exclusionIndex")
         if exclusionIndexPath ~= nil then
             local exclusionPointsRoot = EditorUtils.getNodeByIndexPath(exclusionIndexPath, fieldNode)
@@ -906,21 +1249,26 @@ function FieldToolkit:draw()
                         local excPositions = {}
                         local excLastNode = getChildAt(exclusionPoly, getNumOfChildren(exclusionPoly)-1)
 
+                        local eLastX, _, eLastZ = getWorldTranslation(excLastNode)
+                        local eLastTY = getTerrainHeightAtWorldPos(self.terrainNode, eLastX, 0, eLastZ) + 0.15
+
                         for k=0, getNumOfChildren(exclusionPoly)-1 do
                             local excPoint = getChildAt(exclusionPoly, k)
-                            local ex, ey, ez = getWorldTranslation(excPoint)
-                            local ety = getTerrainHeightAtWorldPos(self.terrainNode, ex, ey, ez) + 0.15
+                            local ex, _, ez = getWorldTranslation(excPoint)
+                            local ety = getTerrainHeightAtWorldPos(self.terrainNode, ex, 0, ez) + 0.15
 
                             table.insert(excPositions, ex)
                             table.insert(excPositions, ety)
                             table.insert(excPositions, ez)
 
-                            local eLastX, eLastY, eLastZ = getWorldTranslation(excLastNode)
-                            drawDebugLine(ex, ety, ez, 1, 0.5, 0, eLastX, eLastY + 0.15, eLastZ, 1, 0.5, 0, false)
+                            drawDebugLine(ex, ety, ez, 1, 0.5, 0, eLastX, eLastTY, eLastZ, 1, 0.5, 0, false)
                             drawDebugPoint(ex, ety, ez, 1, 0.5, 0, 1, false)
-                            excLastNode = excPoint
+
+                            eLastX = ex
+                            eLastTY = ety
+                            eLastZ = ez
                         end
-                        drawDebugPolygon(excPositions, 1, 0.5, 0, 0.5, true)
+                        drawDebugPolygon(excPositions, 1, 0.5, 0, 0.5, false)
                     end
                 end
             end
