@@ -4,7 +4,7 @@ An advanced, highly optimized field creation and maintenance toolkit for the GIA
 
 This script is designed to drastically speed up the workflow for map makers, especially when dealing with complex, organic field shapes, internal exclusion zones (like water ditches, erosion gullies, or grass strips), and spline-based field generation.
 
-## 💬 Community & Support
+## 🤝 Community & Support
 Join our community on Discord for support, feedback, and more modding discussions:
 [Deutsch-Schweizer Agrarservice Discord](https://discord.gg/deutsch-schweizer-agrarservice-676093800057143325)
 
@@ -18,32 +18,35 @@ We merged these concepts, completely rewrote the UI, added robust bounding-box c
 ## ✨ Features
 * **Spline-to-Field Generation**: Draw a spline in the GE, click a button, and generate a perfect, ground-aligned field boundary.
 * **Smart Exclusion Zones (Holes)**: Easily punch holes into your fields for grass strips or ditches. Exclusions are only created "on demand" to keep your scenegraph clean.
-* **Exclusions via Spline**: Draw a spline inside your field, and the script converts it into an exclusion zone, automatically punching it out of the `terrainDetail` layer when repainting.
-* **Bounding-Box Centering**: Field indicators and teleport nodes are perfectly centered based on the mathematical bounding box of your field, ignoring uneven point distributions.
+* **FS25 Ground States UI**: Fully updated for FS25! Choose from all 15 terrain detail states (Stubble Tillage, Seedbed, Plowed, Sown, etc.) using a native pop-up dialog, or use the quick-action button for standard cultivation.
+* **Dynamic Farmland Detection**: The 'Rename Fields' tool now calculates the field's true geometric center on the fly to safely read the Farmland ID, making it completely independent of manually moved indicators.
+* **Auto-Centering**: Field indicators and teleport nodes are automatically centered using a mathematical bounding box the exact second a field is generated, ignoring uneven point distributions.
 * **AI Helper Validation**: Prevents game crashes by strictly checking both main fields AND exclusion zones for duplicate vertices.
 * **Visual Debugging**: Renders field boundaries and exclusion zones (in orange) directly in the GE viewport.
 
-## 🚀 Installation
+## 📥 Installation
 1. Download the `fieldToolkitPro.lua` file.
-2. Place it in your GIANTS Editor scripts folder (usually `C:\Program Files\GIANTS Software\GIANTS Editor 10.0.11\scripts\`).
-3. Alternatively, place it in your editor's custom script folder (usually Win+R %localappdata%\GIANTS Editor 64bit 10.0.11\scripts\ ) and run it via the GE script menu. (<-- recommended)
+2. Place it in your custom GE scripts folder (usually `Win+R` -> `%localappdata%\GIANTS Editor 64bit 10.0.11\scripts\`).
+3. Run it via the GIANTS Editor script menu.
 
-## 📖 How to Use
+## 🛠️ How to Use
 
 ### 1. Field Creation
-* **Create Field (Points)**: Moves the camera to your desired location, creates a `fieldXXX` group at the origin `(0,0,0)`, and places the first polygon point right in front of your camera.
+* **Create Field (Points)**: Moves the camera to your desired location, creates a `fieldXXX` group at the origin `(0,0,0)`, places the first polygon point right in front of your camera, and auto-centers the indicator.
 * **Create Field (from Spline)**: Draw a spline in GE (`Create -> Spline`), select it, and click this button to automatically generate a full field from the curve.
 
 ### 2. Field Exclusions (Holes)
 * **Add Exclusion (Points)**: Select a `fieldXXX` group. The script creates the necessary sub-folders (`exclusion1`, `exclusion2`, etc.) and spawns a starting point in front of your camera.
 * **Add Exclusion (from Spline)**: Draw a spline for your ditch/hole. Select BOTH the `fieldXXX` group AND the spline (using `CTRL + Click`). The script will convert the spline into a perfectly aligned exclusion zone.
 
-### 3. Painting
-* **Paint Fields**: Paints the field boundaries and immediately subtracts all your created exclusion zones from the terrain detail layer automatically.
+### 3. Field Maintenance & Painting
+* **Paint Field (Default)**: 1-click quick action to paint the field with the standard 'Cultivated' state. Automatically punches out all exclusion zones back to grass.
+* **Repaint (Custom State)**: Opens a list dialog to select any of the 15 FS25 ground states to paint your field with.
+* **Rename Fields**: Automatically renames your fields (e.g., `field01`) to match their underlying Farmland ID. Uses a dynamic on-the-fly bounding box calculation to ensure 100% accuracy.
+* **Center Indicators (Bounding Box)**: Manually recalculates and places the field's name and teleport indicators in the exact visual center of the field, ensuring the icon never ends up outside your field. (except complete crazy field shapes)
 
-### 4. Field Maintenance & Utilities
-* **Center Indicators (Bounding Box)**: Accurately places the field's name and teleport indicators in the exact visual center of the field. It uses a mathematical bounding box to completely ignore uneven point distributions (e.g., when a curved edge has 20 points but a straight edge only has 2), ensuring the icon never ends up outside your field.
-* **Update Field Sizes**: Calculates the exact hectare size of your fields (including subtracted exclusions) and updates the internal notes.
+### 4. Sizes & Notes
+* **Update Field Sizes**: Calculates the exact hectare size of your fields (accurately subtracting all exclusion zones) and updates the internal floating 3D notes.
 
 ## 📄 License
 **MIT License**
