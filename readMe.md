@@ -38,8 +38,8 @@ We merged these concepts, completely rewrote the UI, added robust bounding-box c
 * **Add Exclusion (Points)**: Select a `fieldXXX` group. The script creates the necessary sub-folders (`exclusion1`, `exclusion2`, etc.) and spawns a starting point in front of your camera.
 * **Add Exclusion (from Spline)**: Draw a spline for your ditch/hole. Select BOTH the `fieldXXX` group AND the spline (using `CTRL + Click`). The script will convert the spline into a perfectly aligned exclusion zone.
 
-### 3. Repainting
-* **Repaint Fields**: Paints the blue field boundaries and immediately subtracts all your created exclusion zones from the terrain detail layer automatically.
+### 3. Painting
+* **Paint Fields**: Paints the field boundaries and immediately subtracts all your created exclusion zones from the terrain detail layer automatically.
 
 ### 4. Field Maintenance & Utilities
 * **Center Indicators (Bounding Box)**: Accurately places the field's name and teleport indicators in the exact visual center of the field. It uses a mathematical bounding box to completely ignore uneven point distributions (e.g., when a curved edge has 20 points but a straight edge only has 2), ensuring the icon never ends up outside your field.
