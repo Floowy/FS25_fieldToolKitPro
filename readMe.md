@@ -26,7 +26,7 @@ We merged these concepts, completely rewrote the UI, added robust bounding-box c
 ## 🚀 Installation
 1. Download the `fieldToolkitPro.lua` file.
 2. Place it in your GIANTS Editor scripts folder (usually `C:\Program Files\GIANTS Software\GIANTS Editor 10.0.11\scripts\`).
-3. Alternatively, place it in your map's custom script folder and run it via the GE script menu.
+3. Alternatively, place it in your editor's custom script folder (usually Win+R %localappdata%\GIANTS Editor 64bit 10.0.11\scripts\ ) and run it via the GE script menu. (<-- recommended)
 
 ## 📖 How to Use
 
