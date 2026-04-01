@@ -78,6 +78,12 @@ Use this to create "holes" (like grass strips or water ditches) inside your fiel
 2. Click 'Repaint Fields'.
 3. The script will paint the main polygon boundary.
 4. Immediately after, it will read all your 'exclusionX' groups and perfectly punch those holes back out of the terrainDetail layer.]]
+
+    self.helpTexts.center = [[HOW TO: Center Indicators (Bounding Box)
+1. Select a 'fieldXXX' group or leave unselected to process all fields at once.
+2. Click 'Center Indicators (Bounding Box)'.
+3. The script calculates a virtual bounding box around the field boundaries.
+4. The nameIndicator and teleportIndicator are moved to the exact geometric center, completely ignoring uneven point densities along curved edges.]]
 end
 
 function FieldToolkit:showHelp(topic)
@@ -154,13 +160,18 @@ function FieldToolkit:generateUI()
     UIButton.new(btnRow, "Repaint Fields", function() self:repaintFields(getSelection(0)) end, self)
     UIButton.new(btnRow, "(?)", function() self:showHelp("repaint") end, self, -1, -1, 30, -1, BorderDirection.LEFT, 5)
 
-    UIButton.new(columnSizer, "Repaint Fields to Farmland", function() self:repaintFarmlandFields(getSelection(0)) end, self, -1, -1, -1, -1, BorderDirection.BOTTOM, 2,1)
-    UIButton.new(columnSizer, "Center Indicators (Bounding Box)", function() self:centerIndicators(getSelection(0)) end, self, -1, -1, -1, -1, BorderDirection.BOTTOM, 2, 1)
-    UIButton.new(columnSizer, "Align Polygon Points To Terrain", function() self:alignPolygonPointsToTerrain(getSelection(0)) end, self, -1, -1, -1, -1, BorderDirection.BOTTOM, 2,1)
-    UIButton.new(columnSizer, "Rename Polygon Points", function() self:renamePolygonPoints(getSelection(0)) end, self, -1, -1, -1, -1, BorderDirection.BOTTOM, 2,1)
+    UIButton.new(columnSizer, "Repaint Fields to Farmland", function() self:repaintFarmlandFields(getSelection(0)) end, self, -1, -1, -1, -1, BorderDirection.BOTTOM, 2, 1)
+
+    -- NEW: Center Indicators button with help icon
+    local btnRowCenter = UIRowLayoutSizer.new(); UIPanel.new(columnSizer, btnRowCenter, -1, -1, -1, -1, BorderDirection.BOTTOM, 2)
+    UIButton.new(btnRowCenter, "Center Indicators (Bounding Box)", function() self:centerIndicators(getSelection(0)) end, self)
+    UIButton.new(btnRowCenter, "(?)", function() self:showHelp("center") end, self, -1, -1, 30, -1, BorderDirection.LEFT, 5)
+
+    UIButton.new(columnSizer, "Align Polygon Points To Terrain", function() self:alignPolygonPointsToTerrain(getSelection(0)) end, self, -1, -1, -1, -1, BorderDirection.BOTTOM, 2, 1)
+    UIButton.new(columnSizer, "Rename Polygon Points", function() self:renamePolygonPoints(getSelection(0)) end, self, -1, -1, -1, -1, BorderDirection.BOTTOM, 2, 1)
     UIButton.new(columnSizer, "Validate Fields", function() self:validateFields(getSelection(0)) end, self, -1, -1, -1, -1, BorderDirection.BOTTOM, 2, 1)
     UIButton.new(columnSizer, "Update Field Sizes", function() self:updateFieldSizes(getSelection(0)) end, self, -1, -1, -1, -1, BorderDirection.BOTTOM, 2, 1)
-    UIButton.new(columnSizer, "Clear Field Ground", function() self:clearFieldGround(getSelection(0)) end, self, -1, -1, -1, -1, BorderDirection.BOTTOM, 2,1)
+    UIButton.new(columnSizer, "Clear Field Ground", function() self:clearFieldGround(getSelection(0)) end, self, -1, -1, -1, -1, BorderDirection.BOTTOM, 2, 1)
 
     UIHorizontalLine.new(rowSizer, -1, -1, -1, -1, BorderDirection.BOTTOM, 5)
 
