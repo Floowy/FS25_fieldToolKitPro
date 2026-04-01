@@ -14,6 +14,7 @@ end
 
 source("map/farmlandFields/fieldUtil.lua")
 source("ui/MessageBox.lua")
+source("ui/SelectFromListDialog.lua")
 source(gamePath .. "dataS/scripts/shared/class.lua")
 source(gamePath .. "dataS/scripts/utils/MathUtil.lua")
 source(gamePath .. "dataS/scripts/utils/Utils.lua")
@@ -68,10 +69,13 @@ function FieldToolkit:_initializeHelpTexts()
 3. Click 'From Spline' to auto-generate the exclusion points.
 * Works sequentially too! Each new spline selected adds the next exclusion number.]]
 
-    self.helpTexts.repaint = [[HOW TO: Repaint Fields
-Paints the cultivated ground state to the terrainDetail layer and perfectly punches out any 'exclusionX' zones.]]
+    self.helpTexts.paint = [[HOW TO: Paint Fields
+Paints the selected Fields with default ground state Cultivated to the terrainDetail layer and perfectly punches out any 'exclusionX' zones back to grass.]]
 
-    self.helpTexts.repaintFarmland = [[HOW TO: Repaint to Farmland
+    self.helpTexts.repaint = [[HOW TO: Repaint Fields
+Paints the selected ground state from the list to the terrainDetail layer and perfectly punches out any 'exclusionX' zones back to grass.]]
+
+    self.helpTexts.repaintFarmland = [[HOW TO: Paint Farmland to Field
 Automatically paints the field's exact boundary shape into the 'farmlands' InfoLayer.
 The script assigns the Farmland ID based on the field's sequential order in the scenegraph.]]
 
@@ -183,8 +187,9 @@ function FieldToolkit:generateUI()
     local title3 = UILabel.new(sec3Sizer, "3. Field Maintenance & Painting", false, TextAlignment.LEFT, VerticalAlignment.TOP, -1, -1, FieldToolkit.TEXT_WIDTH, FieldToolkit.TEXT_HEIGHT, BorderDirection.BOTTOM, 5)
     title3:setBold(true)
 
-    self:createToolRow(sec3Sizer, "Repaint Fields", "Selected Field", function() self:repaintFields(getSelection(0)) end, "All Fields", function() self:repaintFields() end, "repaint")
-    self:createToolRow(sec3Sizer, "Repaint to Farmland", "Selected Field", function() self:repaintFarmlandFields(getSelection(0)) end, "All Fields", function() self:repaintFarmlandFields() end, "repaintFarmland")
+    self:createToolRow(sec3Sizer, "Paint Field (Default):", "Selected Field", function() self:repaintFields(getSelection(0), 2) end, "All Fields", function() self:repaintFields(nil, 2) end, "paint")
+    self:createToolRow(sec3Sizer, "Repaint (Custom State):", "Selected Field", function() self:openRepaintDialog(getSelection(0)) end, "All Fields", function() self:openRepaintDialog(nil) end, "repaint")
+    self:createToolRow(sec3Sizer, "Paint Farmland to Field", "Selected Field", function() self:repaintFarmlandFields(getSelection(0)) end, "All Fields", function() self:repaintFarmlandFields() end, "repaintFarmland")
     self:createToolRow(sec3Sizer, "Clear Field Ground", "Selected Field", function() self:clearFieldGround(getSelection(0)) end, "Map", function() self:clearFieldGround() end, "clearGround")
     self:createToolRow(sec3Sizer, "Clear Fruits", "Selected Field", function() self:clearFruits(getSelection(0)) end, "All Fields", function() self:clearFruits() end, "clearFruits")
     self:createToolRow(sec3Sizer, "Center Indicators", "Selected Field", function() self:centerIndicators(getSelection(0)) end, "All Fields", function() self:centerIndicators() end, "center")
@@ -242,6 +247,42 @@ end
 -- ==================================================================
 -- CORE LOGIC METHODS
 -- ==================================================================
+
+function FieldToolkit:openRepaintDialog(selectedNode)
+    -- Corrected indices for FS25: 0 is empty, 1 starts the list
+    local states = {
+        "0 - nothing",
+        "1 - Stubble Tillage",
+        "2 - Cultivated",
+        "3 - Seedbed",
+        "4 - Plowed",
+        "5 - Rolled Seedbed",
+        "6 - Ridge",
+        "7 - Sown",
+        "8 - Direct Sown",
+        "9 - Planted",
+        "10 - Ridge (Sown)",
+        "11 - Rollerlines",
+        "12 - Harvest-Ready",
+        "13 - Harvest-Ready Other",
+        "14 - Grass",
+        "15 - Grass (Cut)"
+    }
+
+    local onStateSelected = function(isOk, selectedTxt)
+        if isOk and selectedTxt ~= nil then
+            -- Extract the correct number from the string
+            local targetState = tonumber(selectedTxt:match("^(%d+)"))
+
+            if targetState ~= nil then
+                self:repaintFields(selectedNode, targetState)
+            end
+        end
+    end
+
+    -- Open the dialog with "2 - Cultivated" as default
+    SelectFromListDialog.new("Select Ground State", states, "2 - Cultivated", onStateSelected)
+end
 
 function FieldToolkit:_splineToPoints(splineNode, parentNode, terrainNode)
     if not getHasClassId(splineNode, ClassIds.SHAPE) or not getHasClassId(getGeometry(splineNode), ClassIds.SPLINE) then
@@ -649,14 +690,19 @@ function FieldToolkit:convertOldField(selectedNode)
     end
 end
 
-function FieldToolkit:repaintFields(selectedNode)
+function FieldToolkit:repaintFields(selectedNode, targetState)
     local fieldNode = FieldUtil.getFieldsRootNode()
     if fieldNode == nil then return end
     local terrainNode = EditorUtils.getIdsByName("terrain")[1]
     if terrainNode == nil then return end
 
+    -- Fallback to state 2 (Cultivated) if nothing was explicitly passed
+    local state = targetState or 2
+
     local selectedField = self:getFieldRootByNode(selectedNode)
     local terrainDetail, _ = getTerrainDataPlaneByName(terrainNode, "terrainDetail")
+
+    -- FS25 uses 4 channels for terrainDetail
     local modifier = DensityMapModifier.new(terrainDetail, 0, 4, terrainNode)
 
     for i=0, getNumOfChildren(fieldNode)-1 do
@@ -673,9 +719,11 @@ function FieldToolkit:repaintFields(selectedNode)
                     modifier:addPolygonPointWorldCoords(x, z)
                 end
 
-                modifier:executeSet(2)
-                print("    Repainted field '"..getName(field).."'")
+                -- Apply the chosen ground state
+                modifier:executeSet(state)
+                print(string.format("    Repainted field '%s' with state %d", getName(field), state))
 
+                -- Punch out exclusions (holes)
                 local exclusionIndexPath = getUserAttribute(field, "exclusionIndex")
                 if exclusionIndexPath ~= nil then
                     local exclusionPointsRoot = EditorUtils.getNodeByIndexPath(exclusionIndexPath, field)
@@ -689,8 +737,8 @@ function FieldToolkit:repaintFields(selectedNode)
                                     local ex, _, ez = getWorldTranslation(excPoint)
                                     modifier:addPolygonPointWorldCoords(ex, ez)
                                 end
-                                modifier:executeSet(0)
-                                print("      -> Punched exclusion zone '"..getName(exclusionPoly).."' in field '"..getName(field).."'")
+                                -- Exclusions always go back to state 14 (raw dirt/grass)
+                                modifier:executeSet(14)
                             end
                         end
                     end
