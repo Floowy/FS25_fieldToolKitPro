@@ -188,7 +188,7 @@ function FieldToolkit:generateUI()
     title3:setBold(true)
 
     self:createToolRow(sec3Sizer, "Paint Field (Default):", "Selected Field", function() self:repaintFields(getSelection(0), 2) end, "All Fields", function() self:repaintFields(nil, 2) end, "paint")
-    self:createToolRow(sec3Sizer, "Repaint (Custom State):", "Selected Field", function() self:openRepaintDialog(getSelection(0)) end, "All Fields", function() self:openRepaintDialog(nil) end, "repaint")
+    self:createToolRow(sec3Sizer, "Repaint Field (Custom State):", "Selected Field", function() self:openRepaintDialog(getSelection(0)) end, "All Fields", function() self:openRepaintDialog(nil) end, "repaint")
     self:createToolRow(sec3Sizer, "Paint Farmland to Field", "Selected Field", function() self:repaintFarmlandFields(getSelection(0)) end, "All Fields", function() self:repaintFarmlandFields() end, "repaintFarmland")
     self:createToolRow(sec3Sizer, "Clear Field Ground", "Selected Field", function() self:clearFieldGround(getSelection(0)) end, "Map", function() self:clearFieldGround() end, "clearGround")
     self:createToolRow(sec3Sizer, "Clear Fruits", "Selected Field", function() self:clearFruits(getSelection(0)) end, "All Fields", function() self:clearFruits() end, "clearFruits")
